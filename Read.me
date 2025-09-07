@@ -1,0 +1,31 @@
+
+THE CORE LOGIC OF THE COMPLETE SYSTEM 
+
+FLOW OF EXECUTION
+User registers ⇒ Registers a parent route ⇒ Adds serving routes & selects the parent route.
+Buses are registered under users, not operations—because bus owners have the flexibility to choose where to run their buses without informing the system.
+While adding serving routes, the user selects the source, destination, and parent route. The operation_id is auto-selected based on the parent route, since one parent route has only one operation (operator_id). (In our system, "operation" is the preferred term over "operator.")
+Within one operation, many serving routes can exist. For example, Guwahati to Jorhat has multiple serving routes in between.
+
+NOTE
+The operations table has a predefined state column set by the NRbus company.
+If the state is Assam, valid parent routes are only Guwahati to Roing or Roing to Guwahati.
+All other routes (e.g., Guwahati to Nogaon) fall under these as serving routes.
+A bus always starts its journey from Guwahati or Roing; the rest are considered midpoints or serving routes.
+In such cases, the parent route will still be Guwahati to Roing.
+
+PURPOSE
+User table
+
+Operation table
+
+Serving Routes
+
+One user can have many operations, but let's imagine he has only one bus and a serving route from Guwahati to Roing.
+It means he can make only one trip in a day. However, he will be serving all mid-routes: Guwahati to [Jorhat, Sibsagar, Moran].
+Logic is: if on the same day a user is looking for Moran to Guwahati, this operator should not appear—because he has
+only one bus, and right now it is serving from Guwahati to Roing. Moran to Nogaon is the return trip,
+so in that case, he must turn off the return serving routes.
+
+Considering the situation—which can get more tricky when factoring in different dates and mid-routes—the following flow:
+User → Operations (ParentRoute) → Serving Routes (Midroutes) makes sense and is working fine.
