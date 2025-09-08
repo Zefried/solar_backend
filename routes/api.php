@@ -26,12 +26,15 @@ Route::get('/fetch/employee', [GetUserController::class, 'fetchEmployee']);
 Route::get('/search/employee', [GetUserController::class, 'searchEmployee']);
 
 Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
-    
+
+
 });
 
-Route::post('/doc/upload', [KycController::class, 'uploadDoc']);
+Route::post('/doc/upload', [KycController::class, 'createOrUpdateDocs']);
 
 
+
+ Route::post('/test', [KycController::class, 'updateKycTracking']);
 
 
 
