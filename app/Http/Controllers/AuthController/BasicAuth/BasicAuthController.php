@@ -62,9 +62,9 @@ class BasicAuthController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
+            //'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:3',
-            // 'phone' => 'required|string|max:20|unique:users,phone', // Uncomment if phone login is required
+            'phone' => 'required|string|max:20|unique:users,phone', // Uncomment if phone login is required
         ]);
 
         if ($validator->fails()) {
@@ -92,6 +92,53 @@ class BasicAuthController extends Controller
             return response()->json([
                 'status' => 200,
                 'message' => 'Employee registered successfully',
+                'data' => $user,
+                'token' => $token
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+
+    public function userRegister(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            // 'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:3',
+            'phone' => 'required|string|max:20|unique:users,phone', // Uncomment if phone login is required
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 422,
+                'errors' => $validator->errors()
+            ]);
+        }
+
+        try {
+            $user = User::create([
+                'name' => $request->input('name'),
+                'email' => $request->input('email'),
+                'password' => bcrypt($request->input('password')),
+                'pswView' => $request->input('password'),
+                'phone' => $request->input('phone'),
+                'role' => 'user',
+            ]);
+
+            $token = null;
+            if ($user) {
+                $token = $this->autoLogin($user);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'User registered successfully',
                 'data' => $user,
                 'token' => $token
             ]);
@@ -189,8 +236,8 @@ class BasicAuthController extends Controller
         return response()->json([
             'status' => 200,
             'message' => 'Logged in successfully',
-            'data' => $user->only(['id', 'gender', 'name', 'email', 'phone']),
-            'token' => $token
+            'data' => $user->only(['id', 'gender', 'name', 'email', 'phone', 'role']),
+            'token' => $token,
         ]);
     }
 
