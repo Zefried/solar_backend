@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('user_bank_infos', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id')->index();
-            $table->string('account_holder_name')->index();
-            $table->string('account_number')->index();
+            $table->string('account_holder_name')->nullable()->index();
+            $table->string('account_number')->nullable()->index();
             $table->string('bank_name')->nullable();
             $table->string('ifsc_code')->nullable();
             $table->string('branch_name')->nullable();

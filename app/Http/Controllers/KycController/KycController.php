@@ -24,6 +24,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserKyc\UserBankInfo;
 use App\Models\UserKyc\UserDocuments;
+use App\Models\UserKyc\UserExtraInfo;
 use App\Models\UserKyc\UserKycTrack;
 use App\Models\UserKyc\UserPersonalInfo;
 use Illuminate\Http\Request;
@@ -186,6 +187,7 @@ class KycController extends Controller
         $employeeId = null;
 
         $user = $request->user();
+    
         // The code below runs only for employees; customers will skip it
         if ($user->role !== 'user') {
 
@@ -208,6 +210,7 @@ class KycController extends Controller
             }
             // if exist store employee id for tracking
             $employeeId = $user->id;    
+
         } else {
             $userId = $user->id;
             $employeeId = null;
@@ -242,7 +245,7 @@ class KycController extends Controller
     // ends here
 
 
-    
+
     // handling bank info starts here
     public function createOrUpdateBankInfo(Request $request)
     {
@@ -297,6 +300,68 @@ class KycController extends Controller
 
     }
     // ends here
+
+
+
+    // handling extra info starts here
+    public function createOrupdateExtraInfo(Request $request)
+    {
+            $userId = null;
+            $employeeId = null;
+
+            $user = $request->user();
+            // The code below runs only for employees; customers will skip it
+            if ($user->role !== 'user') {
+
+                $userId = $request->input('userId');
+                $userId = 3; // temp for testing, remove later
+
+                if (!$userId) {
+                    return response()->json([
+                        'status'  => 422,
+                        'message' => 'Please select a user you want to upload documents on behalf of. If user does not exist, add the user first.'
+                    ]);
+                }
+                // Just Check if user exists in DB
+                $targetUser = User::find($userId);
+                if (!$targetUser) {
+                    return response()->json([
+                        'status'  => 404,
+                        'message' => 'Selected user not found in the system. please register user first!'
+                    ]);
+                }
+                // if exist store employee id for tracking
+                $employeeId = $user->id;    
+            } else {
+                $userId = $user->id;
+                $employeeId = null;
+            }
+
+            $userData = UserExtraInfo::updateOrCreate(
+                ['user_id' => $userId],
+                [
+                    'installation_address' => $request->boolean('installation_address'),
+                    'village'              => $request->input('village'),
+                    'landmark'             => $request->input('landmark'),
+                    'district'             => $request->input('district'),
+                    'pincode'              => $request->input('pincode'),
+                    'state'                => $request->input('state'),
+                    'proposed_capacity'    => $request->input('proposed_capacity'),
+                    'plot_type'            => $request->input('plot_type'),
+                ]
+            );
+
+
+            $this->updateExtraInfoKycStatus($userId, $employeeId);
+
+            return response()->json([
+                'status' => 200,
+                'data' => $userData,
+            ]);
+
+    }
+    // ends here
+
 
 
 
@@ -356,6 +421,7 @@ class KycController extends Controller
 
     private function updatePersonalInfoKycStatus($userId, $employeeId = null)
     {
+
         $personalInfo = UserPersonalInfo::where('user_id', $userId)->first();
         if (!$personalInfo) return;
 
@@ -438,6 +504,51 @@ class KycController extends Controller
         }
     }
 
+    private function updateExtraInfoKycStatus($userId, $employeeId = null)
+    {
+        $extraInfo = UserExtraInfo::where('user_id', $userId)->first();
+        if (!$extraInfo) return;
+
+        $fieldsToCheck = [
+            'installation_address',
+            'village',
+            'landmark',
+            'district',
+            'pincode',
+            'state',
+            'proposed_capacity',
+            'plot_type',
+        ];
+
+        $allFilled = collect($fieldsToCheck)->every(function ($field) use ($extraInfo) {
+                        return isset($extraInfo->$field) && ($extraInfo->$field !== '' && 
+                        $extraInfo->$field !== null);
+                    });
+
+        if ($allFilled) {
+           
+            UserKycTrack::updateOrCreate(
+                ['user_id' => $userId],
+                [
+                    'user_extra_status' => true,
+                    'employee_id' => $employeeId
+                ]
+            );
+
+            $kyc = UserKycTrack::where('user_id', $userId)->first();
+            if (!$kyc) return;
+
+            $statusColumns = collect($kyc->getFillable())
+                ->reject(fn($col) => in_array($col, ['id','user_id','employee_id','user_kyc_status']));
+
+            $allSubmitted = $statusColumns->every(fn($col) => $kyc->$col === 1);
+
+            $kyc->update([
+                'user_kyc_status' => $allSubmitted ? 'completed' : 'pending',
+                'employee_id' => $employeeId
+            ]);
+        }
+    }
 
 
 
