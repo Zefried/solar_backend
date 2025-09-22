@@ -14,6 +14,7 @@
 
 // @ ends
 
+// @@@ imp note remove all user_id hardcoded after testing
 
 
 namespace App\Http\Controllers\KycController;
@@ -21,8 +22,10 @@ namespace App\Http\Controllers\KycController;
 use \Log;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserKyc\UserBankInfo;
 use App\Models\UserKyc\UserDocuments;
 use App\Models\UserKyc\UserKycTrack;
+use App\Models\UserKyc\UserPersonalInfo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -51,7 +54,7 @@ class KycController extends Controller
                 ]);
             }
 
-            // Check if user exists in DB
+            // Just Check if user exists in DB
             $targetUser = User::find($userId);
 
             if (!$targetUser) {
@@ -61,6 +64,7 @@ class KycController extends Controller
                 ]);
             }
 
+            // if exist store employee id for tracking
             $employeeId = $user->id;    
 
         } else {
@@ -175,6 +179,126 @@ class KycController extends Controller
 
 
 
+    // handling personal info starts here
+    public function createOrUpdatePersonalInfo(Request $request)
+    {
+        $userId = null;
+        $employeeId = null;
+
+        $user = $request->user();
+        // The code below runs only for employees; customers will skip it
+        if ($user->role !== 'user') {
+
+            $userId = $request->input('userId');
+            $userId = 3; // temp for testing, remove later
+
+            if (!$userId) {
+                return response()->json([
+                    'status'  => 422,
+                    'message' => 'Please select a user you want to upload documents on behalf of. If user does not exist, add the user first.'
+                ]);
+            }
+            // Just Check if user exists in DB
+            $targetUser = User::find($userId);
+            if (!$targetUser) {
+                return response()->json([
+                    'status'  => 404,
+                    'message' => 'Selected user not found in the system. please register user first!'
+                ]);
+            }
+            // if exist store employee id for tracking
+            $employeeId = $user->id;    
+        } else {
+            $userId = $user->id;
+            $employeeId = null;
+        }
+
+        $userData = UserPersonalInfo::updateOrCreate(
+            ['user_id' => $userId],
+            [
+                'employee_id'       => $employeeId,
+                'first_name'        => $request->input('first_name'),
+                'middle_name'       => $request->input('middle_name'),
+                'last_name'         => $request->input('last_name'),
+                'gender'            => $request->input('gender'),
+                'dob'               => $request->input('dob'),
+                'address'           => $request->input('address'),
+                'city'              => $request->input('city'),
+                'state'             => $request->input('state'),
+                'pincode'           => $request->input('pincode'),
+                'phone'             => $request->input('phone'),
+                'alternative_phone' => $request->input('alternative_phone'),
+            ]
+        );
+
+        $this->updatePersonalInfoKycStatus($userId, $employeeId);
+
+        return response()->json([
+            'status' => 200,
+            'data' => $userData,
+        ]);
+
+    }
+    // ends here
+
+
+    
+    // handling bank info starts here
+    public function createOrUpdateBankInfo(Request $request)
+    {
+            $userId = null;
+            $employeeId = null;
+
+            $user = $request->user();
+            // The code below runs only for employees; customers will skip it
+            if ($user->role !== 'user') {
+
+                $userId = $request->input('userId');
+                $userId = 3; // temp for testing, remove later
+
+                if (!$userId) {
+                    return response()->json([
+                        'status'  => 422,
+                        'message' => 'Please select a user you want to upload documents on behalf of. If user does not exist, add the user first.'
+                    ]);
+                }
+                // Just Check if user exists in DB
+                $targetUser = User::find($userId);
+                if (!$targetUser) {
+                    return response()->json([
+                        'status'  => 404,
+                        'message' => 'Selected user not found in the system. please register user first!'
+                    ]);
+                }
+                // if exist store employee id for tracking
+                $employeeId = $user->id;    
+            } else {
+                $userId = $user->id;
+                $employeeId = null;
+            }
+
+            $userData = UserBankInfo::updateOrCreate(
+                ['user_id' => $userId],
+                [
+                    'account_holder_name' => $request->input('account_holder_name'),
+                    'bank_name'           => $request->input('bank_name'),
+                    'branch_name'         => $request->input('branch_name'),
+                    'account_number'      => $request->input('account_number'),
+                    'ifsc_code'           => $request->input('ifsc_code'),
+                ]
+            );
+
+            $this->updateBankInfoKycStatus($userId, $employeeId);
+
+            return response()->json([
+                'status' => 200,
+                'data' => $userData,
+            ]);
+
+    }
+    // ends here
+
+
 
 
 
@@ -230,6 +354,89 @@ class KycController extends Controller
         }
     }
 
+    private function updatePersonalInfoKycStatus($userId, $employeeId = null)
+    {
+        $personalInfo = UserPersonalInfo::where('user_id', $userId)->first();
+        if (!$personalInfo) return;
+
+        $fieldsToCheck = [
+            'first_name',
+            'last_name',
+            'gender',
+            'dob',
+            'address',
+            'city',
+            'state',
+            'pincode',
+            'phone',
+        ];
+
+        $allFilled = collect($fieldsToCheck)->every(fn($field) => !empty($personalInfo->$field));
+
+        if ($allFilled) {
+           
+            UserKycTrack::updateOrCreate(
+                ['user_id' => $userId],
+                [
+                    'user_profile_status' => true,
+                    'employee_id' => $employeeId
+                ]
+            );
+
+            $kyc = UserKycTrack::where('user_id', $userId)->first();
+            if (!$kyc) return;
+
+            $statusColumns = collect($kyc->getFillable())
+                ->reject(fn($col) => in_array($col, ['id','user_id','employee_id','user_kyc_status']));
+
+            $allSubmitted = $statusColumns->every(fn($col) => $kyc->$col === 1);
+
+            $kyc->update([
+                'user_kyc_status' => $allSubmitted ? 'completed' : 'pending',
+                'employee_id' => $employeeId
+            ]);
+        }
+    }
+
+    private function updateBankInfoKycStatus($userId, $employeeId = null)
+    {
+        $bankInfo = UserBankInfo::where('user_id', $userId)->first();
+        if (!$bankInfo) return;
+
+        $fieldsToCheck = [
+            'account_holder_name',
+            'bank_name',
+            'branch_name',
+            'account_number',
+            'ifsc_code',
+        ];
+
+        $allFilled = collect($fieldsToCheck)->every(fn($field) => !empty($bankInfo->$field));
+
+        if ($allFilled) {
+           
+            UserKycTrack::updateOrCreate(
+                ['user_id' => $userId],
+                [
+                    'user_bank_status' => true,
+                    'employee_id' => $employeeId
+                ]
+            );
+
+            $kyc = UserKycTrack::where('user_id', $userId)->first();
+            if (!$kyc) return;
+
+            $statusColumns = collect($kyc->getFillable())
+                ->reject(fn($col) => in_array($col, ['id','user_id','employee_id','user_kyc_status']));
+
+            $allSubmitted = $statusColumns->every(fn($col) => $kyc->$col === 1);
+
+            $kyc->update([
+                'user_kyc_status' => $allSubmitted ? 'completed' : 'pending',
+                'employee_id' => $employeeId
+            ]);
+        }
+    }
 
 
 

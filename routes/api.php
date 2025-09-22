@@ -28,6 +28,7 @@ Route::get('/search/employee', [GetUserController::class, 'searchEmployee']);
 
 Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
     Route::post('/doc/upload', [KycController::class, 'createOrUpdateDocs']);
+    Route::post('/personal-info', [KycController::class, 'createOrUpdatePersonalInfo']);
 });
 
 
