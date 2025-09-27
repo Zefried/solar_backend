@@ -11,6 +11,7 @@ use App\Models\UserKyc\UserPersonalInfo;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Response;
 
 class FetchKycDetailController extends Controller
 {
@@ -228,6 +229,18 @@ class FetchKycDetailController extends Controller
                 'message' => 'An error occurred: fetchExtraInfo'
             ]);
         }
+    }
+
+    public function downloadFile($filename)
+    {
+        return $filename;
+        // $path = public_path($filename);
+        // if (!file_exists($path)) {
+        //     return response()->json(['error' => 'File not found'], 404);
+        // }
+        // return response()->download($path)->withHeaders([
+        //     'Access-Control-Allow-Origin' => '*',
+        // ]);
     }
 
 

@@ -97,15 +97,14 @@ class KycController extends Controller
             ]);
         }
     }
-
     private function runDocCreateOrUpdate($request, $userId)
     {
         $validator = Validator::make($request->all(), [
-            'idProofFront'    => 'nullable|file|mimes:jpg,jpeg,png,pdf',
-            'idProofBack'     => 'nullable|file|mimes:jpg,jpeg,png,pdf',
-            'panCard'         => 'nullable|file|mimes:jpg,jpeg,png,pdf',
-            'cancelledCheque' => 'nullable|file|mimes:jpg,jpeg,png,pdf',
-            'electricityBill' => 'nullable|file|mimes:jpg,jpeg,png,pdf',
+            'idProofFront'    => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'idProofBack'     => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'panCard'         => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'cancelledCheque' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'electricityBill' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
             'idProofNumber'   => 'nullable|string|max:255',
             'panNumber'       => 'nullable|string|max:255',
             'consumerNumber'  => 'nullable|string|max:255',
@@ -133,14 +132,23 @@ class KycController extends Controller
         ];
 
         $data = [];
-        // This is where we use userId to fetch all existing information
         $existing = UserDocuments::where('user_id', $userId)->first();
 
         foreach ($fileFields as $reqKey => $dbKey) {
-          $data[$dbKey] = $request->hasFile($reqKey)
-            ? $this->moveFileWithTimestamp($request->file($reqKey), $existing->$dbKey ?? null)
-            : ($existing->$dbKey ?? null);
-        } // 4 edge case
+            if ($request->hasFile($reqKey)) {
+                $file = $request->file($reqKey);
+                if ($file->getMimeType() === 'application/pdf' || str_contains($file->getMimeType(), 'image')) {
+                    $data[$dbKey] = $this->moveFileWithTimestamp($file, $existing->$dbKey ?? null);
+                } else {
+                    return response()->json([
+                        'status' => 422,
+                        'errors' => [$reqKey => 'Invalid file type.']
+                    ]);
+                }
+            } else {
+                $data[$dbKey] = $existing->$dbKey ?? null;
+            }
+        }
 
         foreach ($inputFields as $reqKey => $dbKey) {
             $data[$dbKey] = $request->input($reqKey, $existing->$dbKey ?? null);
@@ -156,26 +164,19 @@ class KycController extends Controller
 
     private function moveFileWithTimestamp($file, $oldFilePath = null)
     {
-        try {
-            if ($oldFilePath) {
-                $oldFullPath = public_path(trim($oldFilePath, '/'));
-                if (file_exists($oldFullPath)) {
-                    unlink($oldFullPath);
-                }
-            }
-
-            $safeName = preg_replace('/[^A-Za-z0-9_\.-]/', '_', $file->getClientOriginalName());
-            $fileName = time() . '_' . uniqid() . '_' . $safeName;
-
-            $file->move(public_path('user_docs'), $fileName);
-
-            return 'user_docs/' . $fileName;
-        } catch (\Exception $e) {
-            // Optional: log error
-            return response()->json($e->getMessage());
-    
+        if ($oldFilePath) {
+            $oldFullPath = public_path(trim($oldFilePath, '/'));
+            if (file_exists($oldFullPath)) unlink($oldFullPath);
         }
+
+        $safeName = preg_replace('/[^A-Za-z0-9_\.-]/', '_', $file->getClientOriginalName());
+        $fileName = time() . '_' . uniqid() . '_' . $safeName;
+
+        $file->move(public_path('user_docs'), $fileName);
+
+        return 'user_docs/' . $fileName;
     }
+
     // handling document ends here
 
 

@@ -41,6 +41,19 @@ Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
     Route::get('/bank-info/fetch', [FetchKycDetailController::class, 'fetchBankInfo']);
     Route::get('/extra-info/fetch', [FetchKycDetailController::class, 'fetchExtraInfo']);
 
+ Route::post('/download', function (Request $request) {
+    $filePath = public_path($request->input('path')); // full path from DB
+    $filename = basename($filePath);
+
+    if (!file_exists($filePath)) {
+        return response()->json(['error' => 'File not found', 'path_checked' => $filePath], 404);
+    }
+
+    return response()->download($filePath, $filename, [
+        'Content-Type' => 'application/octet-stream',
+        'Content-Disposition' => 'attachment; filename="' . $filename . '"'
+    ]);
+});
     // Update KYC 
     Route::post('/update/bank-info', [UpdateKycController::class, 'updateBankInfo']);
     Route::post('/update/personal-info', [UpdateKycController::class, 'updatePersonalInfo']);
