@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\UserKyc\UserBankInfo;
 use App\Models\UserKyc\UserDocuments;
 use App\Models\UserKyc\UserExtraInfo;
+use App\Models\UserKyc\UserKycTrack;
 use App\Models\UserKyc\UserPersonalInfo;
 use Illuminate\Http\Request;
 
@@ -60,6 +61,8 @@ class UpdateKycController extends Controller
                     'branch_name'         => $request->branch_name,
                 ]
             );
+
+            $this->updateBankInfoKycStatus($userId, $employeeId);
 
             return response()->json([
                 'status'  => 200,
@@ -129,6 +132,7 @@ class UpdateKycController extends Controller
                 ]
             );
 
+            $this->updatePersonalInfoKycStatus($userId, $employeeId);
 
             return response()->json([
                 'status'  => 200,
@@ -203,6 +207,8 @@ class UpdateKycController extends Controller
 
             $documentData->save();
 
+            $this->updateDocumentsKycStatus($userId, $employeeId);
+
             return response()->json([
                 'status'  => 200,
                 'message' => 'Document info updated successfully',
@@ -268,6 +274,8 @@ class UpdateKycController extends Controller
                 ]
             );
 
+            $this->updateExtraInfoKycStatus($userId, $employeeId);
+
             return response()->json([
                 'status'  => 200,
                 'message' => 'Extra info updated successfully',
@@ -281,5 +289,190 @@ class UpdateKycController extends Controller
             ]);
         }
     }
+
+
+    // kyc status checking starts here
+    private function updateBankInfoKycStatus($userId, $employeeId = null)
+    {
+        $bankInfo = UserBankInfo::where('user_id', $userId)->first();
+        if (!$bankInfo) return;
+
+        $fieldsToCheck = [
+            'account_holder_name',
+            'bank_name',
+            'branch_name',
+            'account_number',
+            'ifsc_code',
+        ];
+
+        $allFilled = collect($fieldsToCheck)->every(fn($field) => !empty($bankInfo->$field));
+
+        if ($allFilled) {
+           
+            UserKycTrack::updateOrCreate(
+                ['user_id' => $userId],
+                [
+                    'user_bank_status' => true,
+                    'employee_id' => $employeeId
+                ]
+            );
+
+            $kyc = UserKycTrack::where('user_id', $userId)->first();
+            if (!$kyc) return;
+
+            $statusColumns = collect($kyc->getFillable())
+                ->reject(fn($col) => in_array($col, ['id','user_id','employee_id','user_kyc_status']));
+
+            $allSubmitted = $statusColumns->every(fn($col) => $kyc->$col === 1);
+
+            $kyc->update([
+                'user_kyc_status' => $allSubmitted ? 'completed' : 'pending',
+                'employee_id' => $employeeId
+            ]);
+        }
+    }
+    
+    private function updateDocumentsKycStatus($userId, $employeeId = null)
+    {
+      
+        $docs = UserDocuments::where('user_id', $userId)->first();
+        if (!$docs) return;
+
+  
+        $fieldsToCheck = [
+            'id_proof_front',
+            'id_proof_back',
+            'id_proof_number',
+            'pan_card',
+            'pan_number',
+            'cancelled_cheque',
+            'electricity_bill',
+            'consumer_number',
+        ];
+
+        $allFilled = collect($fieldsToCheck)->every(fn($field) => !empty($docs->$field));
+
+        // Note: This works only when all user columns are filled
+        if ($allFilled) {
+            UserKycTrack::updateOrCreate(
+                ['user_id' => $userId],
+                
+                [
+                    'user_doc_status' => true, 
+                    'employee_id' => $employeeId
+                ]
+            );
+
+            $kyc = UserKycTrack::where('user_id', $userId)->first();
+            if (!$kyc) return;
+
+            // Collect all boolean status columns
+            $statusColumns = collect($kyc->getFillable())
+                ->reject(fn($col) => in_array($col, ['id', 'user_id', 'employee_id', 'user_kyc_status']));
+
+            // Determine current status dynamically
+            $allSubmitted = $statusColumns->every(fn($col) => $kyc->$col === 1);
+
+            // Always update to reflect reality
+            $kyc->update([
+                'user_kyc_status' => $allSubmitted ? 'completed' : 'pending',
+                'employee_id' => $employeeId
+            ]);
+
+
+        }
+    }
+
+    private function updatePersonalInfoKycStatus($userId, $employeeId = null)
+    {
+
+        $personalInfo = UserPersonalInfo::where('user_id', $userId)->first();
+        if (!$personalInfo) return;
+
+        $fieldsToCheck = [
+            'first_name',
+            'last_name',
+            'gender',
+            'dob',
+            'address',
+            'city',
+            'state',
+            'pincode',
+            'phone',
+        ];
+
+        $allFilled = collect($fieldsToCheck)->every(fn($field) => !empty($personalInfo->$field));
+
+        if ($allFilled) {
+           
+            UserKycTrack::updateOrCreate(
+                ['user_id' => $userId],
+                [
+                    'user_profile_status' => true,
+                    'employee_id' => $employeeId
+                ]
+            );
+
+            $kyc = UserKycTrack::where('user_id', $userId)->first();
+            if (!$kyc) return;
+
+            $statusColumns = collect($kyc->getFillable())
+                ->reject(fn($col) => in_array($col, ['id','user_id','employee_id','user_kyc_status']));
+
+            $allSubmitted = $statusColumns->every(fn($col) => $kyc->$col === 1);
+
+            $kyc->update([
+                'user_kyc_status' => $allSubmitted ? 'completed' : 'pending',
+                'employee_id' => $employeeId
+            ]);
+        }
+    }
+
+    private function updateExtraInfoKycStatus($userId, $employeeId = null)
+    {
+        $extraInfo = UserExtraInfo::where('user_id', $userId)->first();
+        if (!$extraInfo) return;
+
+        $fieldsToCheck = [
+            'installation_address',
+            'village',
+            'landmark',
+            'district',
+            'pincode',
+            'state',
+            'proposed_capacity',
+            'plot_type',
+        ];
+
+        $allFilled = collect($fieldsToCheck)->every(function ($field) use ($extraInfo) {
+                        return isset($extraInfo->$field) && ($extraInfo->$field !== '' && 
+                        $extraInfo->$field !== null);
+                    });
+
+        if ($allFilled) {
+           
+            UserKycTrack::updateOrCreate(
+                ['user_id' => $userId],
+                [
+                    'user_extra_status' => true,
+                    'employee_id' => $employeeId
+                ]
+            );
+
+            $kyc = UserKycTrack::where('user_id', $userId)->first();
+            if (!$kyc) return;
+
+            $statusColumns = collect($kyc->getFillable())
+                ->reject(fn($col) => in_array($col, ['id','user_id','employee_id','user_kyc_status']));
+
+            $allSubmitted = $statusColumns->every(fn($col) => $kyc->$col === 1);
+
+            $kyc->update([
+                'user_kyc_status' => $allSubmitted ? 'completed' : 'pending',
+                'employee_id' => $employeeId
+            ]);
+        }
+    }
+
 
 }
