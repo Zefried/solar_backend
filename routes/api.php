@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController\BasicAuth\BasicAuthController;
 use App\Http\Controllers\AuthController\BasicAuth\GetUserController;
 use App\Http\Controllers\KycController\FetchKycDetailController;
 use App\Http\Controllers\KycController\KycController;
+use App\Http\Controllers\KycController\KycReportController;
 use App\Http\Controllers\KycController\UpdateKycController;
 use App\Http\Middleware\AdminMiddleware;
 use Illuminate\Http\Request;
@@ -40,26 +41,16 @@ Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
     Route::get('/personal-info/fetch', [FetchKycDetailController::class, 'fetchPersonalInfo']);
     Route::get('/bank-info/fetch', [FetchKycDetailController::class, 'fetchBankInfo']);
     Route::get('/extra-info/fetch', [FetchKycDetailController::class, 'fetchExtraInfo']);
+    Route::post('/download', [FetchKycDetailController::class, 'downloadFiles']);
 
- Route::post('/download', function (Request $request) {
-    $filePath = public_path($request->input('path')); // full path from DB
-    $filename = basename($filePath);
-
-    if (!file_exists($filePath)) {
-        return response()->json(['error' => 'File not found', 'path_checked' => $filePath], 404);
-    }
-
-    return response()->download($filePath, $filename, [
-        'Content-Type' => 'application/octet-stream',
-        'Content-Disposition' => 'attachment; filename="' . $filename . '"'
-    ]);
-});
     // Update KYC 
     Route::post('/update/bank-info', [UpdateKycController::class, 'updateBankInfo']);
     Route::post('/update/personal-info', [UpdateKycController::class, 'updatePersonalInfo']);
     Route::post('/update/extra-info', [UpdateKycController::class, 'updateExtraInfo']);
     Route::post('/update/documents', [UpdateKycController::class, 'updateDocuments']);
     
+    // kyc reporting
+    Route::post('/dashboard/reports', [KycReportController::class, 'test']);
 });
 
 

@@ -231,16 +231,19 @@ class FetchKycDetailController extends Controller
         }
     }
 
-    public function downloadFile($filename)
+    public function downloadFiles(Request $request)
     {
-        return $filename;
-        // $path = public_path($filename);
-        // if (!file_exists($path)) {
-        //     return response()->json(['error' => 'File not found'], 404);
-        // }
-        // return response()->download($path)->withHeaders([
-        //     'Access-Control-Allow-Origin' => '*',
-        // ]);
+        $filePath = public_path($request->input('path')); // full path from DB
+        $filename = basename($filePath);
+
+        if (!file_exists($filePath)) {
+            return response()->json(['error' => 'File not found', 'path_checked' => $filePath], 404);
+        }
+
+        return response()->download($filePath, $filename, [
+            'Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"'
+        ]);
     }
 
 
