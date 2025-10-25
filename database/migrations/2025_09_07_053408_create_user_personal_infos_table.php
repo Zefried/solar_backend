@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('user_personal_infos', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id')->index();
-            $table->string('first_name');
+            $table->string('first_name')->nullable();
             $table->string('middle_name')->nullable();
-            $table->string('last_name');
+            $table->string('last_name')->nullable();
             $table->enum('gender', ['male','female','other'])->nullable();
             $table->date('dob')->nullable();
             $table->text('address')->nullable();

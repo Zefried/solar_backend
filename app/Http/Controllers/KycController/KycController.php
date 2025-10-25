@@ -97,6 +97,7 @@ class KycController extends Controller
             ]);
         }
     }
+    
     private function runDocCreateOrUpdate($request, $userId)
     {
         $validator = Validator::make($request->all(), [
@@ -193,7 +194,7 @@ class KycController extends Controller
         if ($user->role !== 'user') {
 
             $userId = $request->input('userId');
-            $userId = 3; // temp for testing, remove later
+            // $userId = 3; // temp for testing
 
             if (!$userId) {
                 return response()->json([
@@ -250,15 +251,17 @@ class KycController extends Controller
     // handling bank info starts here
     public function createOrUpdateBankInfo(Request $request)
     {
+        
             $userId = null;
             $employeeId = null;
-
+              
             $user = $request->user();
+
             // The code below runs only for employees; customers will skip it
             if ($user->role !== 'user') {
-
+                   
                 $userId = $request->input('userId');
-                $userId = 3; // temp for testing, remove later
+                // $userId = 3; // temp for testing
 
                 if (!$userId) {
                     return response()->json([
@@ -315,7 +318,7 @@ class KycController extends Controller
             if ($user->role !== 'user') {
 
                 $userId = $request->input('userId');
-                $userId = 3; // temp for testing, remove later
+                // $userId = 3; // temp for testing
 
                 if (!$userId) {
                     return response()->json([
@@ -467,6 +470,7 @@ class KycController extends Controller
 
     private function updateBankInfoKycStatus($userId, $employeeId = null)
     {
+       
         $bankInfo = UserBankInfo::where('user_id', $userId)->first();
         if (!$bankInfo) return;
 
@@ -477,6 +481,7 @@ class KycController extends Controller
             'account_number',
             'ifsc_code',
         ];
+
 
         $allFilled = collect($fieldsToCheck)->every(fn($field) => !empty($bankInfo->$field));
 

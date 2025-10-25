@@ -13,26 +13,43 @@ use Illuminate\Support\Carbon;
 
 class KycReportController extends Controller
 {
-    public function test(Request $request)
+    public function userDashboardReport(Request $request)
     {
-        $to = $request->input('to'); // e.g., '2025-09-28'
-        $startOfMonth = Carbon::now()->startOfMonth()->toDateString();
-        $endDate = $to ?? Carbon::now()->toDateString();
+        try {
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['status' => 401, 'message' => 'Unauthorized']);
+            }
 
-        $personalInfo = UserPersonalInfo::whereBetween('created_at', [$startOfMonth, $endDate])->get();
-        $userBankInfo = UserBankInfo::whereBetween('created_at', [$startOfMonth, $endDate])->get();
-        $userExtraInfo = UserExtraInfo::whereBetween('created_at', [$startOfMonth, $endDate])->get();
-        $userDocuments = UserDocuments::whereBetween('created_at', [$startOfMonth, $endDate])->get();
+            $from = $request->input('from');
+            $to = $request->input('to');
 
-        return response()->json([
-            'status' => 200,
-            'data' => [
-                'personalInfo' => $personalInfo,
-                'bankInfo'     => $userBankInfo,
-                'extraInfo'    => $userExtraInfo,
-                'documents'    => $userDocuments,
-            ]
-        ]);
+            $dataModels = [
+                'personalInfo' => UserPersonalInfo::class,
+                'bankInfo'     => UserBankInfo::class,
+                'extraInfo'    => UserExtraInfo::class,
+                'documents'    => UserDocuments::class,
+            ];
+
+            $data = [];
+            foreach ($dataModels as $key => $model) {
+                $query = $model::where('user_id', $user->id);
+                if ($from && $to) {
+                    $query->whereBetween('created_at', [$from, $to]);
+                }
+                $data[$key] = $query->get();
+            }
+
+            return response()->json(['status' => 200, 'data' => $data]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Server error - userDashboardReport'
+            ]);
+        }
     }
+
+
+
 
 }

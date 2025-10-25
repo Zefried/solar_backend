@@ -27,6 +27,7 @@ class User extends Authenticatable
         'pswView',
         'user_disable',
         'role',
+        'employee_id',
     ];
 
 

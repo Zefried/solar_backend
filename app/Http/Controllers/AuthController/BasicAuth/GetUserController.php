@@ -98,6 +98,66 @@ class GetUserController extends Controller
         }
     }
 
+    public function searchUsers(Request $request)
+    {
+        try {
+            $role = 'user';
+            $name = $request->query('name');
+            $query = User::where('role', $role);
+
+            // If logged-in user is not admin, restrict by employee_id
+            if ($request->user()->role !== 'admin') {
+                $query->where('employee_id', $request->user()->id);
+            }
+
+            if ($name) {
+                $query->where(function($q) use ($name) {
+                    $q->where('name', 'like', '%' . $name . '%')
+                    ->orWhere('phone', 'like', '%' . $name . '%');
+                });
+            }
+
+            $users = $query->get();
+
+            if ($users->isEmpty()) {
+                return response()->json(['status' => 404, 'message' => 'No users found']);
+            }
+
+            return response()->json(['status' => 200, 'data' => $users]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 500, 'message' => 'Server error - searchUsers']);
+        }
+    }
+
+
+
+    public function searchEmployeeInRegister(Request $request)
+    {
+        try {
+            $role = 'employee';
+            $name = $request->query('name');
+
+            $query = User::where('role', $role);
+            if ($name) {
+                $query->where(function ($q) use ($name) {
+                    $q->where('name', 'like', '%' . $name . '%')
+                    ->orWhere('phone', 'like', '%' . $name . '%');
+                });
+            }
+
+            $employees = $query->get();
+
+            if ($employees->isEmpty()) {
+                return response()->json(['status' => 404, 'message' => 'No employees found']);
+            }
+
+            return response()->json(['status' => 200, 'data' => $employees]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 500, 'message' => 'Server error - searchEmployee']);
+        }
+    }
+
+    
 
 
 

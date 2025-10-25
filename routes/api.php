@@ -20,14 +20,18 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::post('/admin/register', [BasicAuthController::class, 'adminRegister']);
 Route::post('/employee/register', [BasicAuthController::class, 'employeeRegister']);
 Route::post('/user/register', [BasicAuthController::class, 'userRegister']);
+    Route::get('/search/employee/register', [GetUserController::class, 'searchEmployeeInRegister']); // associate an employee 
 
 // Login Route for all users
 Route::post('/login', [BasicAuthController::class, 'login']);
 
+
 // Get User Route
-    // Employee role specific routes - Keep separate for clarity
+// Employee role specific routes - Keep separate for clarity
 Route::get('/fetch/employee', [GetUserController::class, 'fetchEmployee']);
 Route::get('/search/employee', [GetUserController::class, 'searchEmployee']);
+
+
 
 Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
     // creating resource 
@@ -50,14 +54,26 @@ Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
     Route::post('/update/documents', [UpdateKycController::class, 'updateDocuments']);
     
     // kyc reporting
-    Route::post('/dashboard/reports', [KycReportController::class, 'test']);
+    Route::post('/dashboard/reports', [KycReportController::class, 'userDashboardReport']);
+});
+
+
+// Admin and Employee specific routes
+Route::middleware(['auth:sanctum'])->group(function () {
+
+    Route::prefix('employee')->group(function () {
+        Route::get('/search/users', [GetUserController::class, 'searchUsers']);
+       
+    });
+
+    Route::prefix('admin')->group(function () {
+        Route::get('/fetch/users', [GetUserController::class, 'fetchUsers']);
+    });
+
 });
 
 
 
-
-
- Route::post('/test', [KycController::class, 'updateKycTracking']);
 
 
 

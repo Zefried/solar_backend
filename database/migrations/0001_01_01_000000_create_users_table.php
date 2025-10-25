@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('pswView')->nullable();
             $table->string('role')->nullable();
             $table->boolean('disable')->default(false)->nullable();
+            $table->string('employee_id')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->timestamps();

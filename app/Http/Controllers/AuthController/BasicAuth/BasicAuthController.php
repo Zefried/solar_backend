@@ -129,6 +129,7 @@ class BasicAuthController extends Controller
                 'pswView' => $request->input('password'),
                 'phone' => $request->input('phone'),
                 'role' => 'user',
+                'employee_id' => $request->input('employee_id'), // associate an employee
             ]);
 
             $token = null;
