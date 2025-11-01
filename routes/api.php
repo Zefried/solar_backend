@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController\BasicAuth\BasicAuthController;
 use App\Http\Controllers\AuthController\BasicAuth\GetUserController;
+use App\Http\Controllers\EmployeeReport\EmployeeReportController;
 use App\Http\Controllers\KycController\FetchKycDetailController;
 use App\Http\Controllers\KycController\KycController;
 use App\Http\Controllers\KycController\KycReportController;
@@ -70,7 +71,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('employee')->group(function () {
         Route::get('/search/users', [GetUserController::class, 'searchUsers']);
-       
+        Route::get('/reports', [EmployeeReportController::class, 'employeeReports']);
     });
 
     Route::prefix('admin')->group(function () {

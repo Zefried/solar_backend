@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+use App\Models\UserKyc\UserKycTrack;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -33,6 +35,11 @@ class User extends Authenticatable
     public function employee()
     {
         return $this->belongsTo(User::class, 'employee_id');
+    }
+
+    public function kycTrack()
+    {
+        return $this->hasOne(UserKycTrack::class, 'user_id', 'id');
     }
 
     /**

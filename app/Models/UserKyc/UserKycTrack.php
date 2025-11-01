@@ -2,6 +2,7 @@
 
 namespace App\Models\UserKyc;
 
+use App\Models\User;
 use App\Models\UserKyc\UserBankInfo;
 use App\Models\UserKyc\UserDocuments;
 use App\Models\UserKyc\UserExtraInfo;
@@ -25,5 +26,10 @@ class UserKycTrack extends Model
     public function personalInfo() { return $this->hasOne(UserPersonalInfo::class, 'user_id', 'user_id'); }
     public function bankInfo() { return $this->hasOne(UserBankInfo::class, 'user_id', 'user_id'); }
     public function extraInfo() { return $this->hasOne(UserExtraInfo::class, 'user_id', 'user_id'); }
+    
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
 }

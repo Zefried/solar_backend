@@ -543,9 +543,7 @@ class GetUserController extends Controller
     {
         try {
             $authUser = $request->user();
-            $role = $authUser->role;
-
-            if ($role !== 'admin') {
+            if ($authUser->role !== 'admin') {
                 return response()->json([
                     'status' => 403,
                     'message' => 'Unauthorized role access'
@@ -554,6 +552,12 @@ class GetUserController extends Controller
 
             $users = User::where('role', 'user')
                 ->where('employee_id', $id)
+                ->with([
+                    'kycTrack.documents',
+                    'kycTrack.personalInfo',
+                    'kycTrack.bankInfo',
+                    'kycTrack.extraInfo'
+                ])
                 ->get();
 
             if ($users->isEmpty()) {
@@ -576,4 +580,6 @@ class GetUserController extends Controller
             ]);
         }
     }
+
+
 }
