@@ -6,7 +6,6 @@ use App\Http\Controllers\KycController\FetchKycDetailController;
 use App\Http\Controllers\KycController\KycController;
 use App\Http\Controllers\KycController\KycReportController;
 use App\Http\Controllers\KycController\UpdateKycController;
-use App\Http\Middleware\AdminMiddleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -61,6 +60,14 @@ Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
 // Admin and Employee specific routes
 Route::middleware(['auth:sanctum'])->group(function () {
 
+    Route::get('/get/user/list', [GetUserController::class, 'getUsersList']);
+    
+    // Fetching details of users associated with the employee
+    Route::get('/clients/bank-info/{id}', [GetUserController::class, 'getUserBankInfo']);
+    Route::get('/clients/doc-info/{id}', [GetUserController::class, 'getUserDocInfo']);
+    Route::get('/clients/personal-info/{id}', [GetUserController::class, 'getUserPersonalInfo']);
+    Route::get('/clients/extra-info/{id}', [GetUserController::class, 'getUserExtraInfo']);
+
     Route::prefix('employee')->group(function () {
         Route::get('/search/users', [GetUserController::class, 'searchUsers']);
        
@@ -68,6 +75,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('admin')->group(function () {
         Route::get('/fetch/users', [GetUserController::class, 'fetchUsers']);
+        Route::get('/view/employee', [GetUserController::class, 'viewEmployee']);
+        Route::post('/update/employee/{id}', [GetUserController::class, 'updateEmployee']);
+        Route::post('/add/employee/', [GetUserController::class, 'addEmployeeByAdmin']);
+        Route::get('/employee/list', [GetUserController::class, 'getEmployeesList']);
+        Route::get('/employee/users/{id}', [GetUserController::class, 'employeeUsersList']);
     });
 
 });

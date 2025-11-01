@@ -3,7 +3,13 @@
 namespace App\Http\Controllers\AuthController\BasicAuth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Employee;
 use App\Models\User;
+use App\Models\UserKyc\UserBankInfo;
+use App\Models\UserKyc\UserDocuments;
+use App\Models\UserKyc\UserExtraInfo;
+use App\Models\UserKyc\UserPersonalInfo;
+use Exception;
 use Illuminate\Http\Request;
 
 class GetUserController extends Controller
@@ -129,8 +135,6 @@ class GetUserController extends Controller
         }
     }
 
-
-
     public function searchEmployeeInRegister(Request $request)
     {
         try {
@@ -158,12 +162,418 @@ class GetUserController extends Controller
     }
 
     
+    public function getUsersList(Request $request)
+    {
+        try {
+            $user = $request->user();
 
+            $query = User::where('role', 'user')
+                ->with(['employee' => function ($q) {
+                    $q->select('id', 'name');
+                }]);
 
+            if ($user->role === 'employee') {
+                $query->where('employee_id', $user->id);
+            } elseif ($user->role !== 'admin') {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Unauthorized role access'
+                ]);
+            }
 
+            $users = $query->get();
 
+            if ($users->isEmpty()) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'No users found'
+                ]);
+            }
 
+            $users->transform(function ($u) {
+                $u->employee_name = $u->employee->name ?? null;
+                unset($u->employee);
+                return $u;
+            });
 
+            return response()->json([
+                'status' => 200,
+                'data' => $users
+            ]);
 
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Server error - getUsersList',
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    public function getUserBankInfo(Request $request, $id)
+    {
+        try {
+            $authUser = $request->user();
+            $role = $authUser->role;
 
+            if (!in_array($role, ['admin', 'employee'])) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Unauthorized role access'
+                ]);
+            }
+
+            $user = User::where('id', $id)->where('role', 'user')->first();
+
+            if (!$user) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'User not found'
+                ]);
+            }
+
+            // Employee can only access their associated users
+            if ($role === 'employee' && $user->employee_id != $authUser->id) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'You are not authorized to view this user’s bank info'
+                ]);
+            }
+
+            $bankInfo = UserBankInfo::where('user_id', $user->id)->first();
+
+            if (!$bankInfo) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'Bank information not found for this user'
+                ]);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'data' => $bankInfo
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Server error - getUserBankInfo',
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function getUserDocInfo(Request $request, $id)
+    {
+        try {
+            $authUser = $request->user();
+            $role = $authUser->role;
+
+            if (!in_array($role, ['admin', 'employee'])) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Unauthorized role access'
+                ]);
+            }
+
+            $user = User::where('id', $id)->where('role', 'user')->first();
+
+            if (!$user) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'User not found'
+                ]);
+            }
+
+            // Employee can only access their associated users
+            if ($role === 'employee' && $user->employee_id != $authUser->id) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'You are not authorized to view this user’s document info'
+                ]);
+            }
+
+              $docInfo = UserDocuments::where('user_id', $user->id)->first();
+
+            if (!$docInfo) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'Document information not found for this user'
+                ]);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'data' => $docInfo
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Server error - getUserDocInfo',
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function getUserPersonalInfo(Request $request, $id)
+    {
+        try {
+            $authUser = $request->user();
+            $role = $authUser->role;
+
+            if (!in_array($role, ['admin', 'employee'])) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Unauthorized role access'
+                ]);
+            }
+
+            $user = User::where('id', $id)->where('role', 'user')->first();
+
+            if (!$user) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'User not found'
+                ]);
+            }
+
+            // Employee can only access their associated users
+            if ($role === 'employee' && $user->employee_id != $authUser->id) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'You are not authorized to view this user’s personal info'
+                ]);
+            }
+
+            $personalInfo = UserPersonalInfo::where('user_id', $user->id)->first();
+
+            if (!$personalInfo) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'Personal information not found for this user'
+                ]);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'data' => $personalInfo
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Server error - getUserPersonalInfo',
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function getUserExtraInfo(Request $request, $id)
+    {
+        try {
+            $authUser = $request->user();
+            $role = $authUser->role;
+
+            if (!in_array($role, ['admin', 'employee'])) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Unauthorized role access'
+                ]);
+            }
+
+            $user = User::where('id', $id)->where('role', 'user')->first();
+
+            if (!$user) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'User not found'
+                ]);
+            }
+
+            // Employee can only access their associated users
+            if ($role === 'employee' && $user->employee_id != $authUser->id) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'You are not authorized to view this user’s extra info'
+                ]);
+            }
+
+            $extraInfo = UserExtraInfo::where('user_id', $user->id)->first();
+
+            if (!$extraInfo) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'Extra information not found for this user'
+                ]);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'data' => $extraInfo
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Server error - getUserExtraInfo',
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function viewEmployee(Request $request)
+    {
+        try {
+            $authUser = $request->user();
+            $role = $authUser->role;
+
+            if ($role !== 'admin') {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Unauthorized role access'
+                ]);
+            }
+
+            $employees = User::where('role', 'employee')->get();
+
+            if ($employees->isEmpty()) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'No employees found'
+                ]);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'data' => $employees
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Server error - viewEmployee',
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function updateEmployee(Request $request, $id){
+        try{
+            $user = User::findOrFail($id);
+
+            $updateData = $request->only(['name','email','phone','pswView']);
+            
+            if($request->filled('pswView')){
+                $updateData['password'] = bcrypt($request->pswView);
+            }
+
+            $user->update($updateData);
+
+            return response()->json([
+                'status'=>200,
+                'message'=>'Employee updated successfully',
+                'data'=>$user
+            ]);
+        }catch(Exception $e){
+                return response()->json(['status'=>500,
+                'message'=>'server error',
+                'error'=>$e->getMessage()
+            ]);
+        }
+    }
+
+   
+    public function addEmployeeByAdmin(Request $request){
+        try{
+            $validated = $request->validate([
+                'name' => 'required|string',
+                'email' => 'nullable|email',
+                'phone' => 'required|string',
+                'pswView' => 'required|string',
+                'role' => 'required|string',
+            ]);
+
+            $validated['password'] = bcrypt($validated['pswView']);
+            $user = User::create($validated);
+
+            return response()->json(['status'=>200,'message'=>'Employee added successfully','data'=>$user]);
+        }catch(Exception $e){
+            return response()->json(['status'=>500,'message'=>'server error','error'=>$e->getMessage()]);
+        }
+    }
+
+    public function getEmployeesList(Request $request)
+    {
+        try {
+            $authUser = $request->user();
+            $role = $authUser->role;
+
+            if ($role !== 'admin') {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Unauthorized role access'
+                ]);
+            }
+
+            $employees = User::where('role', 'employee')->get();
+
+            if ($employees->isEmpty()) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'No employees found'
+                ]);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'data' => $employees
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Server error - getEmployeesList',
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function employeeUsersList(Request $request, $id)
+    {
+        try {
+            $authUser = $request->user();
+            $role = $authUser->role;
+
+            if ($role !== 'admin') {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Unauthorized role access'
+                ]);
+            }
+
+            $users = User::where('role', 'user')
+                ->where('employee_id', $id)
+                ->get();
+
+            if ($users->isEmpty()) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'No users found for this employee'
+                ]);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'data' => $users
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Server error - employeeUsersList',
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
 }
