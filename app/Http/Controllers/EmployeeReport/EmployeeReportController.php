@@ -30,6 +30,10 @@ class EmployeeReportController extends Controller
             $query->where('employee_id', $user->id);
         })->where('user_kyc_status', 'completed')->count();
 
+        $totalProcessingClients = UserKycTrack::whereHas('user', function ($query) use ($user) {
+            $query->where('employee_id', $user->id);
+        })->where('user_kyc_status', 'processing')->count();
+
         return response()->json([
             'status' => 200,
             'message' => 'Employee Reports Accessed',
@@ -37,6 +41,7 @@ class EmployeeReportController extends Controller
             'total_clients' => $totalClients,
             'total_pending_clients' => $totalPendingClients,
             'total_completed_clients' => $totalCompletedClients,
+            'active_clients' => $totalProcessingClients ?? 0,
         ]);
     }
 
