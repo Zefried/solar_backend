@@ -16,32 +16,38 @@ class EmployeeReportController extends Controller
         if (!$user || $user->role !== 'employee') {
             return response()->json([
                 'status' => 403,
-                'message' => 'Unauthorized access'
+                'message' => 'Unauthorized access',
             ], 403);
         }
 
-        $totalClients = User::where('role', 'user')->where('employee_id', $user->id)->count();
-        
-        $totalPendingClients = UserKycTrack::whereHas('user', function ($query) use ($user) {
-            $query->where('employee_id', $user->id);
-        })->where('user_kyc_status', 'pending')->count();
+        $date = $request->input('date'); // optional date filter
 
-        $totalCompletedClients = UserKycTrack::whereHas('user', function ($query) use ($user) {
-            $query->where('employee_id', $user->id);
-        })->where('user_kyc_status', 'completed')->count();
+        $userQuery = User::where('role', 'user')->where('employee_id', $user->id);
+        if ($date) {
+            $userQuery->whereDate('created_at', $date);
+        }
+        $totalClients = $userQuery->count();
 
-        $totalProcessingClients = UserKycTrack::whereHas('user', function ($query) use ($user) {
+        $trackQuery = UserKycTrack::whereHas('user', function ($query) use ($user, $date) {
             $query->where('employee_id', $user->id);
-        })->where('user_kyc_status', 'processing')->count();
+            if ($date) {
+                $query->whereDate('created_at', $date);
+            }
+        });
+
+        $totalPendingClients = (clone $trackQuery)->where('user_kyc_status', 'pending')->count();
+        $totalCompletedClients = (clone $trackQuery)->where('user_kyc_status', 'completed')->count();
+        $totalProcessingClients = (clone $trackQuery)->where('user_kyc_status', 'processing')->count();
 
         return response()->json([
             'status' => 200,
             'message' => 'Employee Reports Accessed',
             'user' => $user,
+            'date_filter' => $date,
             'total_clients' => $totalClients,
             'total_pending_clients' => $totalPendingClients,
             'total_completed_clients' => $totalCompletedClients,
-            'active_clients' => $totalProcessingClients ?? 0,
+            'active_clients' => $totalProcessingClients,
         ]);
     }
 

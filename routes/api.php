@@ -61,7 +61,7 @@ Route::middleware(['auth:sanctum'])->prefix('user')->group(function () {
 // Admin and Employee specific routes
 Route::middleware(['auth:sanctum'])->group(function () {
 
-    Route::get('/get/user/list', [GetUserController::class, 'getUsersList']);
+    Route::post('/get/user/list', [GetUserController::class, 'getUsersList']);
     
     // Fetching details of users associated with the employee
     Route::get('/clients/bank-info/{id}', [GetUserController::class, 'getUserBankInfo']);
@@ -70,8 +70,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/clients/extra-info/{id}', [GetUserController::class, 'getUserExtraInfo']);
 
     Route::prefix('employee')->group(function () {
-        Route::get('/search/users', [GetUserController::class, 'searchUsers']);
-        Route::get('/reports', [EmployeeReportController::class, 'employeeReports']);
+        Route::post('/search/users', [GetUserController::class, 'searchUsers']);
+        Route::post('/reports', [EmployeeReportController::class, 'employeeReports']);
     });
 
     Route::prefix('admin')->group(function () {

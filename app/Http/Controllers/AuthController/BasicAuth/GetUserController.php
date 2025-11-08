@@ -104,20 +104,36 @@ class GetUserController extends Controller
         }
     }
 
+    // employee can search based on status for admin it returns all users
     public function searchUsers(Request $request)
     {
         try {
             $role = 'user';
             $name = $request->query('name');
+            $status = $request->input('status', 'all'); // 👈 allow optional status for employees only
+
             $query = User::where('role', $role);
 
-            // If logged-in user is not admin, restrict by employee_id
-            if ($request->user()->role !== 'admin') {
+            // ✅ Employee restriction (keep admin logic intact)
+            if ($request->user()->role === 'employee') {
                 $query->where('employee_id', $request->user()->id);
+
+                // 👇 Only apply status filter for employees if not 'all'
+                if ($status !== 'all') {
+                    $query->whereHas('kycTrack', function ($q) use ($status) {
+                        $q->where('user_kyc_status', $status);
+                    });
+                }
+            } elseif ($request->user()->role !== 'admin') {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Unauthorized role access',
+                ]);
             }
 
+            // ✅ Existing search logic (same for admin and employee)
             if ($name) {
-                $query->where(function($q) use ($name) {
+                $query->where(function ($q) use ($name) {
                     $q->where('name', 'like', '%' . $name . '%')
                     ->orWhere('phone', 'like', '%' . $name . '%');
                 });
@@ -126,14 +142,27 @@ class GetUserController extends Controller
             $users = $query->get();
 
             if ($users->isEmpty()) {
-                return response()->json(['status' => 404, 'message' => 'No users found']);
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'No users found',
+                ]);
             }
 
-            return response()->json(['status' => 200, 'data' => $users]);
+            return response()->json([
+                'status' => 200,
+                'filter_status' => $status,
+                'data' => $users,
+            ]);
+
         } catch (\Exception $e) {
-            return response()->json(['status' => 500, 'message' => 'Server error - searchUsers']);
+            return response()->json([
+                'status' => 500,
+                'message' => 'Server error - searchUsers',
+                'error' => $e->getMessage(),
+            ]);
         }
     }
+
 
     public function searchEmployeeInRegister(Request $request)
     {
@@ -166,12 +195,14 @@ class GetUserController extends Controller
     {
         try {
             $user = $request->user();
+            $status = $request->input('status', 'all'); // get status from POST
 
             $query = User::where('role', 'user')
                 ->with(['employee' => function ($q) {
                     $q->select('id', 'name');
                 }]);
 
+            // ✅ Role handling (keep existing logic)
             if ($user->role === 'employee') {
                 $query->where('employee_id', $user->id);
             } elseif ($user->role !== 'admin') {
@@ -181,12 +212,19 @@ class GetUserController extends Controller
                 ]);
             }
 
+            // ✅ Optional status filtering (for employee or admin)
+            if ($status !== 'all') {
+                $query->whereHas('kycTrack', function ($q) use ($status) {
+                    $q->where('user_kyc_status', $status);
+                });
+            }
+
             $users = $query->get();
 
             if ($users->isEmpty()) {
                 return response()->json([
                     'status' => 404,
-                    'message' => 'No users found'
+                    'message' => 'No users found for status: ' . $status
                 ]);
             }
 
@@ -198,6 +236,8 @@ class GetUserController extends Controller
 
             return response()->json([
                 'status' => 200,
+                'message' => 'User list retrieved successfully',
+                'filter_status' => $status,
                 'data' => $users
             ]);
 
@@ -209,6 +249,7 @@ class GetUserController extends Controller
             ]);
         }
     }
+
     
     public function getUserBankInfo(Request $request, $id)
     {
