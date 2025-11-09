@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminReport\AdminReportController;
 use App\Http\Controllers\AuthController\BasicAuth\BasicAuthController;
 use App\Http\Controllers\AuthController\BasicAuth\GetUserController;
 use App\Http\Controllers\EmployeeReport\EmployeeReportController;
@@ -81,6 +82,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/add/employee/', [GetUserController::class, 'addEmployeeByAdmin']);
         Route::get('/employee/list', [GetUserController::class, 'getEmployeesList']);
         Route::get('/employee/users/{id}', [GetUserController::class, 'employeeUsersList']);
+        Route::post('/reports', [AdminReportController::class, 'adminReports']);
+        Route::post('/search/users', [AdminReportController::class, 'searchUsersAdmin']);
     });
 
 });
