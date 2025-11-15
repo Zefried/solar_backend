@@ -108,57 +108,66 @@ class GetUserController extends Controller
     public function searchUsers(Request $request)
     {
         try {
-            $role = 'user';
-            $name = $request->query('name');
-            $status = $request->input('status', 'all'); // 👈 allow optional status for employees only
+            $role   = 'user';
+            $name   = $request->query('name');
+            $status = $request->input('status', 'all');
 
             $query = User::where('role', $role);
 
-            // ✅ Employee restriction (keep admin logic intact)
+            // Employee-specific restriction
             if ($request->user()->role === 'employee') {
                 $query->where('employee_id', $request->user()->id);
 
-                // 👇 Only apply status filter for employees if not 'all'
                 if ($status !== 'all') {
                     $query->whereHas('kycTrack', function ($q) use ($status) {
                         $q->where('user_kyc_status', $status);
                     });
                 }
-            } elseif ($request->user()->role !== 'admin') {
+            }
+            // Block all other roles except admin
+            elseif ($request->user()->role !== 'admin') {
                 return response()->json([
-                    'status' => 403,
+                    'status'  => 403,
                     'message' => 'Unauthorized role access',
                 ]);
             }
 
-            // ✅ Existing search logic (same for admin and employee)
+            // Search by name / phone
             if ($name) {
                 $query->where(function ($q) use ($name) {
-                    $q->where('name', 'like', '%' . $name . '%')
-                    ->orWhere('phone', 'like', '%' . $name . '%');
+                    $q->where('name', 'like', "%{$name}%")
+                    ->orWhere('phone', 'like', "%{$name}%");
                 });
             }
 
-            $users = $query->get();
+            // Attach employee relation
+            $query->with('employee');
+
+            // Build response data with employee_name
+            $users = $query->get()->map(function ($u) {
+                return array_merge($u->toArray(), [
+                    'employee_name' => $u->employee->name ?? null,
+                ]);
+            });
 
             if ($users->isEmpty()) {
                 return response()->json([
-                    'status' => 404,
+                    'status'  => 404,
                     'message' => 'No users found',
                 ]);
             }
 
             return response()->json([
-                'status' => 200,
-                'filter_status' => $status,
-                'data' => $users,
+                'status'        => 200,
+                'filter_status' => $request->input('status', 'all'),
+                'data'          => $users,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'status' => 500,
+                'status'  => 500,
                 'message' => 'Server error - searchUsers',
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
         }
     }
